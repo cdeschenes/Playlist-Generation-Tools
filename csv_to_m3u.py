@@ -5,6 +5,7 @@
 csv_to_m3u.py
 Reads a CSV with headers: artist, album, title
 Builds a fuzzy-matched M3U8 playlist from your local music library.
+Configuration is sourced from environment variables (see .env).
 
 Requires:
   pip install rapidfuzz mutagen
@@ -12,43 +13,51 @@ Requires:
 
 from __future__ import annotations
 import csv
-import os
 import sys
 import unicodedata
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from config import (
+    get_bool,
+    get_float,
+    get_int,
+    get_path,
+    get_str,
+    load_env,
+)
+
+load_env()
+
 # =========================
-# CONFIG (override here or via environment variables)
+# CONFIGURATION
 # =========================
-def _getenv(name: str, default: str) -> str:
-    return os.environ.get(name, default)
 
 # Root of your music files (where audio files live)
-MUSIC_ROOT = Path(_getenv("MUSIC_ROOT", "/Volumes/NAS/Media/Music/Music_Server/"))
+MUSIC_ROOT = get_path("MUSIC_ROOT", "/Volumes/NAS/Media/Music/Music_Server/")
 
 # Where to save the generated .m3u8 playlists
-PLAYLIST_DIR = Path(_getenv("PLAYLIST_DIR", "/Volumes/NAS/Media/Music/Music_Server/_playlists/"))
+PLAYLIST_DIR = get_path("PLAYLIST_DIR", "/Volumes/NAS/Media/Music/Music_Server/_playlists/")
 
 # Path rewriting (what to replace in file paths when writing the M3U)
-PATH_REWRITE_FROM = _getenv("PATH_REWRITE_FROM", "/Volumes/NAS/Media/Music/Music_Server/")
-PATH_REWRITE_TO   = _getenv("PATH_REWRITE_TO",   "/music/")
+PATH_REWRITE_FROM = get_str("PATH_REWRITE_FROM", "/Volumes/NAS/Media/Music/Music_Server/")
+PATH_REWRITE_TO = get_str("PATH_REWRITE_TO", "/music/")
 
 # CSV filename (in same folder as this script). If blank, auto-pick newest .csv next to the script
-CSV_BASENAME = _getenv("CSV_BASENAME", "Liked_Tracks_clean.csv").strip()
+CSV_BASENAME = get_str("CSV_BASENAME", "Liked_Tracks_clean.csv").strip()
 
 # Matching options
-FUZZ_THRESHOLD = int(_getenv("FUZZ_THRESHOLD", "86"))  # accept if weighted score >= this
-TITLE_WEIGHT   = float(_getenv("TITLE_WEIGHT", "0.60"))
-ARTIST_WEIGHT  = float(_getenv("ARTIST_WEIGHT", "0.30"))
-ALBUM_WEIGHT   = float(_getenv("ALBUM_WEIGHT", "0.10"))
+FUZZ_THRESHOLD = get_int("FUZZ_THRESHOLD", 86)  # accept if weighted score >= this
+TITLE_WEIGHT = get_float("TITLE_WEIGHT", 0.60)
+ARTIST_WEIGHT = get_float("ARTIST_WEIGHT", 0.30)
+ALBUM_WEIGHT = get_float("ALBUM_WEIGHT", 0.10)
 
 # File types we’ll index
 AUDIO_EXTS = {".mp3", ".flac", ".m4a", ".alac", ".aac", ".ogg", ".opus", ".wav", ".aiff", ".aif"}
 
 # Indexing performance: set to True to skip tag read for WAV/AIFF (often no tags)
-SKIP_TAGS_FOR_RAW_PCM = _getenv("SKIP_TAGS_FOR_RAW_PCM", "true").lower() in {"1", "true", "yes"}
+SKIP_TAGS_FOR_RAW_PCM = get_bool("SKIP_TAGS_FOR_RAW_PCM", True)
 
 # =========================
 # Imports that may fail if deps missing

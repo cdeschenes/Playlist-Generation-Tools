@@ -1,19 +1,24 @@
 """Utility to regenerate a playlist with all non-FLAC audio files.
 
-Update the constants below if your music library or playlist path changes.
+Configuration is read from environment variables (see .env).
 """
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Iterable
 
+from config import get_path, get_str, load_env
+
+load_env()
+
 # --- Configuration ---------------------------------------------------------
-MUSIC_ROOT = Path("/Volumes/NAS/Media/Music/Music_Server")
-PLAYLIST_PATH = Path(
-    "/Volumes/NAS/Media/Music/Music_Server/_playlists/Look For Replacment.m3u"
+MUSIC_ROOT = get_path("MUSIC_ROOT", "/Volumes/NAS/Media/Music/Music_Server")
+PLAYLIST_PATH = get_path(
+    "PLAYLIST_PATH",
+    "/Volumes/NAS/Media/Music/Music_Server/_playlists/Look For Replacment.m3u",
 )
 # Prefix used inside the playlist so paths look like they are under /music
-PLAYLIST_PREFIX = "/music"
+PLAYLIST_PREFIX = get_str("PLAYLIST_PREFIX", "/music")
 
 # Known audio file extensions (lowercase) we care about; adjust if needed.
 # FLAC is intentionally excluded later so only non-FLAC formats are emitted.
