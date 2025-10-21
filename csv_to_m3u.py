@@ -19,45 +19,38 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import (
-    get_bool,
-    get_float,
-    get_int,
-    get_path,
-    get_str,
-    load_env,
-)
-
-load_env()
+from config import Settings, get_settings
 
 # =========================
 # CONFIGURATION
 # =========================
 
+SETTINGS: Settings = get_settings()
+
 # Root of your music files (where audio files live)
-MUSIC_ROOT = get_path("MUSIC_ROOT", "/Volumes/NAS/Media/Music/Music_Server/")
+MUSIC_ROOT = SETTINGS.music_root
 
 # Where to save the generated .m3u8 playlists
-PLAYLIST_DIR = get_path("PLAYLIST_DIR", "/Volumes/NAS/Media/Music/Music_Server/_playlists/")
+PLAYLIST_DIR = SETTINGS.playlist_dir
 
 # Path rewriting (what to replace in file paths when writing the M3U)
-PATH_REWRITE_FROM = get_str("PATH_REWRITE_FROM", "/Volumes/NAS/Media/Music/Music_Server/")
-PATH_REWRITE_TO = get_str("PATH_REWRITE_TO", "/music/")
+PATH_REWRITE_FROM = SETTINGS.normalized_path_rewrite_from
+PATH_REWRITE_TO = SETTINGS.normalized_path_rewrite_to
 
 # CSV filename (in same folder as this script). If blank, auto-pick newest .csv next to the script
-CSV_BASENAME = get_str("CSV_BASENAME", "Liked_Tracks_clean.csv").strip()
+CSV_BASENAME = SETTINGS.csv_input_filename
 
 # Matching options
-FUZZ_THRESHOLD = get_int("FUZZ_THRESHOLD", 86)  # accept if weighted score >= this
-TITLE_WEIGHT = get_float("TITLE_WEIGHT", 0.60)
-ARTIST_WEIGHT = get_float("ARTIST_WEIGHT", 0.30)
-ALBUM_WEIGHT = get_float("ALBUM_WEIGHT", 0.10)
+FUZZ_THRESHOLD = SETTINGS.fuzzy_match_threshold  # accept if weighted score >= this
+TITLE_WEIGHT = SETTINGS.fuzzy_title_weight
+ARTIST_WEIGHT = SETTINGS.fuzzy_artist_weight
+ALBUM_WEIGHT = SETTINGS.fuzzy_album_weight
 
 # File types we’ll index
 AUDIO_EXTS = {".mp3", ".flac", ".m4a", ".alac", ".aac", ".ogg", ".opus", ".wav", ".aiff", ".aif"}
 
 # Indexing performance: set to True to skip tag read for WAV/AIFF (often no tags)
-SKIP_TAGS_FOR_RAW_PCM = get_bool("SKIP_TAGS_FOR_RAW_PCM", True)
+SKIP_TAGS_FOR_RAW_PCM = SETTINGS.skip_raw_pcm_tags
 
 # =========================
 # Imports that may fail if deps missing
@@ -281,9 +274,17 @@ def rewrite_path(original: Path) -> str:
     # normalize separators; operate on POSIX form
     posix = original.as_posix()
     if PATH_REWRITE_FROM and posix.startswith(PATH_REWRITE_FROM):
-        return PATH_REWRITE_TO.rstrip("/") + posix[len(PATH_REWRITE_FROM)-1:]  # keep leading slash
-    # fallback: best effort
-    return posix.replace(MUSIC_ROOT.as_posix(), PATH_REWRITE_TO.rstrip("/"), 1)
+        suffix = posix[len(PATH_REWRITE_FROM) :]
+        return SETTINGS.normalized_path_rewrite_to + suffix.lstrip("/")
+    # fallback: attempt to replace MUSIC_ROOT if PATH_REWRITE_FROM differs
+    library_prefix = SETTINGS.music_root.as_posix()
+    if not library_prefix.endswith("/"):
+        library_prefix += "/"
+    if posix.startswith(library_prefix):
+        suffix = posix[len(library_prefix) :]
+        return SETTINGS.normalized_path_rewrite_to + suffix.lstrip("/")
+    # final fallback: leave path untouched
+    return posix
 
 def write_m3u(out_path: Path, tracks_with_meta: List[Track]):
     ensure_dir(out_path.parent)

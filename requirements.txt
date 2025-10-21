@@ -1,0 +1,6 @@
+mutagen
+python-dotenv
+rapidfuzz
+requests
+rich
+urllib3

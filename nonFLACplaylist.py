@@ -7,18 +7,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-from config import get_path, get_str, load_env
-
-load_env()
+from config import Settings, get_settings
 
 # --- Configuration ---------------------------------------------------------
-MUSIC_ROOT = get_path("MUSIC_ROOT", "/Volumes/NAS/Media/Music/Music_Server")
-PLAYLIST_PATH = get_path(
-    "PLAYLIST_PATH",
-    "/Volumes/NAS/Media/Music/Music_Server/_playlists/Look For Replacment.m3u",
-)
+SETTINGS: Settings = get_settings()
+MUSIC_ROOT = SETTINGS.music_root
+PLAYLIST_PATH = SETTINGS.nonflac_playlist_path
 # Prefix used inside the playlist so paths look like they are under /music
-PLAYLIST_PREFIX = get_str("PLAYLIST_PREFIX", "/music")
+PLAYLIST_PREFIX = SETTINGS.path_rewrite_to.rstrip("/")
 
 # Known audio file extensions (lowercase) we care about; adjust if needed.
 # FLAC is intentionally excluded later so only non-FLAC formats are emitted.
