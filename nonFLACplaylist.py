@@ -5,9 +5,14 @@ Configuration is read from environment variables (see .env).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 from config import Settings, get_settings
+
+try:
+    from tqdm import tqdm
+except Exception:  # pragma: no cover - optional dependency
+    tqdm = None
 
 # --- Configuration ---------------------------------------------------------
 SETTINGS: Settings = get_settings()
@@ -60,6 +65,18 @@ TARGET_EXTENSIONS = {ext for ext in AUDIO_EXTENSIONS if ext != ".flac"}
 # ---------------------------------------------------------------------------
 
 
+def iter_with_basic_progress(iterable: Iterable[Path], *, report_every: int = 1000) -> Iterable[Path]:
+    """Yield items while emitting textual progress updates when tqdm is unavailable."""
+    count = 0
+    for count, item in enumerate(iterable, 1):
+        if count % report_every == 0:
+            print(f"Scanning library... {count:,} paths processed", end="\r", flush=True)
+        yield item
+    if count:
+        print(f"Scanning library... {count:,} paths processed", end="\r", flush=True)
+    print()  # ensure newline after progress output
+
+
 def normalize_extension(path: Path) -> str:
     return path.suffix.lower()
 
@@ -69,17 +86,31 @@ def is_target_audio(path: Path) -> bool:
     return ext in TARGET_EXTENSIONS
 
 
-def find_non_flac_audio_files(root: Path) -> list[Path]:
+def find_non_flac_audio_files(root: Path, *, show_progress: bool = True) -> list[Path]:
     """Return a sorted list of non-FLAC audio files under *root*."""
     if not root.exists():
         raise FileNotFoundError(f"Music root does not exist: {root}")
 
     files: list[Path] = []
-    for candidate in root.rglob("*"):
+    iterator = root.rglob("*")
+    progress: Optional[object] = None
+    if show_progress and tqdm is not None:
+        progress = tqdm(iterator, desc="Scanning library", unit="path", dynamic_ncols=True)
+        iterable: Iterable[Path] = progress
+    elif show_progress:
+        iterable = iter_with_basic_progress(iterator)
+    else:
+        iterable = iterator
+
+    for candidate in iterable:
         if not candidate.is_file():
             continue
         if is_target_audio(candidate):
             files.append(candidate)
+
+    if progress is not None:
+        progress.close()
+
     # Sort paths for deterministic playlist output
     files.sort(key=lambda p: str(p).casefold())
     return files

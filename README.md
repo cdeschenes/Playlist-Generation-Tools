@@ -35,6 +35,13 @@ Environment variables are loaded from `.env` (project root) plus any script-loca
 | `FUZZY_ALBUM_WEIGHT` | `0.10` | Weight given to the album score. |
 | `SKIP_RAW_PCM_TAGS` | `true` | Skip tag reads for WAV/AIFF during indexing. |
 | `LOG_LEVEL` | `INFO` | Baseline log level (CLI flags still override at runtime). |
+| `SUBSONIC_URL` | _required_ | Base URL for the Navidrome server (`star_playlist_tracks.py`). |
+| `SUBSONIC_USER` | _required_ | Username for Navidrome authentication. |
+| `SUBSONIC_PASSWORD` | _(preferred)_ | Password used to derive per-request Navidrome tokens. |
+| `SUBSONIC_TOKEN` | _(optional)_ | Precomputed token (use with `SUBSONIC_SALT` when password is unset). |
+| `SUBSONIC_SALT` | _(optional)_ | Salt paired with `SUBSONIC_TOKEN`. |
+| `SUBSONIC_API_VERSION` | `1.16.1` | Override Navidrome API version if your server requires it. |
+| `SUBSONIC_CLIENT` | `nd-star-script` | Client identifier appended to API requests. |
 
 > Legacy variable names remain supported for now; when a fallback is used a `DeprecationWarning` is emitted so you can update your `.env`.
 
@@ -67,6 +74,16 @@ Enumerates every non-FLAC file under `MUSIC_ROOT` and writes them to `NONFLAC_PL
 ```bash
 python nonFLACplaylist.py
 ```
+
+### star_playlist_tracks.py
+Reads an `.m3u/.m3u8` playlist, matches each entry against your Navidrome library, and stars the corresponding tracks. Generates CSV reports (`results.csv`, `misses.csv`, `already_starred.csv`) in the working directory and obeys `--dry-run`, `--concurrency`, `--progress`, and logging options.
+
+```bash
+python star_playlist_tracks.py --m3u "/Volumes/.../MyFavorites.m3u" --dry-run --progress
+python star_playlist_tracks.py --m3u "/Volumes/.../MyFavorites.m3u" --concurrency 8 --log-file ./nd_star.log
+```
+
+Configure the `SUBSONIC_*` variables in `.env` before running; the script performs a `ping` to validate credentials and masks sensitive data in logs.
 
 ## Path Rewrite Behaviour
 `PATH_REWRITE_FROM`/`PATH_REWRITE_TO` are applied consistently across scripts so generated playlists reference container-friendly paths (e.g., `/music/...`). Ensure `PATH_REWRITE_FROM` exactly matches the on-disk prefix you need to replace.
